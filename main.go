@@ -79,9 +79,12 @@ func main() {
 			applyDisplaySettings(&session.Displays)
 			// Wait to fix display layout
 			time.Sleep(time.Second * 5)
-			applyWindowRect(&session.WRects)
+			err := applyWindowRect(&session.WRects)
+			if err != nil {
+				log.Println(err)
+			}
 
-			err := os.Remove(SESSION_NAME + ".json")
+			err = os.Remove(SESSION_NAME + ".json")
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -165,15 +168,19 @@ func getAllWindowRect() (wRectList []WindowRect) {
 	return
 }
 
-func applyWindowRect(wRectList *[]WindowRect) {
+func applyWindowRect(wRectList *[]WindowRect) error {
 	winPosInfo := BeginDeferWindowPos(len(*wRectList))
 	for _, wRect := range *wRectList {
 		winPosInfo = DeferWindowPos(winPosInfo, wRect.HWnd, HWND_TOP,
 			int(wRect.Rect.Left), int(wRect.Rect.Top), int(wRect.Rect.Right-wRect.Rect.Left), int(wRect.Rect.Bottom-wRect.Rect.Top),
 			SWP_NOZORDER&SWP_NOACTIVATE)
 		// SWP_NOZORDER&SWP_NOACTIVATE&SWP_FRAMECHANGED)
+		if winPosInfo == 0 {
+			return fmt.Errorf("Failure to apply window %s", wRect.Text)
+		}
 	}
 	if !EndDeferWindowPos(winPosInfo) {
-		log.Fatal("Failure to apply window rect")
+		return fmt.Errorf("Failure to execute EndDeferWindowPos")
 	}
+	return nil
 }
